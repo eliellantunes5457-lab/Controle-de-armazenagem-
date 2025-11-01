@@ -1,0 +1,257 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Controle de Bulks - Ambev</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<style>
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; font-family: "Segoe UI", Roboto, sans-serif;
+    background: linear-gradient(135deg, #004aad, #0078ff);
+    color: #222; display: flex; justify-content: center; align-items: center;
+    min-height: 100vh;
+  }
+
+  .app {
+    background: #fff;
+    width: 90%;
+    max-width: 420px;
+    border-radius: 20px;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+    overflow: hidden;
+    animation: fadeIn 0.5s ease;
+  }
+
+  header {
+    background: #004aad;
+    color: #fff;
+    text-align: center;
+    padding: 20px;
+    font-size: 22px;
+    font-weight: 600;
+    letter-spacing: 0.5px;
+  }
+
+  .content { padding: 25px; }
+  label { font-weight: 600; color: #333; display: block; margin-top: 10px; }
+  input, select {
+    width: 100%; padding: 12px; margin-top: 6px;
+    border-radius: 10px; border: 1px solid #ccc;
+    font-size: 16px; transition: 0.2s;
+  }
+  input:focus, select:focus { border-color: #0078ff; outline: none; }
+
+  button {
+    width: 100%; padding: 14px; margin-top: 14px;
+    border: none; border-radius: 12px;
+    font-size: 17px; font-weight: bold; cursor: pointer;
+    background: #0078ff; color: #fff; transition: all 0.2s;
+  }
+  button:hover { background: #005fcc; }
+  button.secondary { background: #ccc; color: #333; }
+  button.secondary:hover { background: #bbb; }
+
+  h2 { text-align: center; color: #004aad; margin-top: 0; }
+  .counter {
+    text-align: center; font-size: 60px; color: #004aad; margin: 25px 0;
+    font-weight: bold;
+  }
+
+  .tabela {
+    background: #f5f7fa;
+    padding: 10px;
+    border-radius: 10px;
+    margin-top: 20px;
+  }
+
+  .tabela div {
+    display: flex;
+    justify-content: space-between;
+    padding: 4px 0;
+    border-bottom: 1px solid #ddd;
+    font-size: 14px;
+  }
+
+  .tabela div:last-child { border: none; font-weight: bold; }
+
+  @keyframes fadeIn {
+    from { opacity: 0; transform: translateY(20px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  .hidden { display: none; }
+</style>
+</head>
+<body>
+<div class="app">
+  <header>Controle de Bulks - Ambev</header>
+
+  <div class="content">
+    <!-- Tela Inicial -->
+    <div id="tela-inicial">
+      <label>Nome do Operador:</label>
+      <input id="operador" type="text" placeholder="Digite seu nome">
+      <label>Turno:</label>
+      <select id="turno">
+        <option value="">Selecione...</option>
+        <option>Turno A</option>
+        <option>Turno B</option>
+        <option>Turno C</option>
+      </select>
+      <button id="iniciar">Iniciar Controle</button>
+    </div>
+
+    <!-- Seleção -->
+    <div id="tela-selecao" class="hidden">
+      <h2>Selecione o tipo de Bulk</h2>
+      <button id="bulk-stella">Bulk Stella 🍺</button>
+      <button id="bulk-spaten">Bulk Spaten 🍺</button>
+      <button class="secondary" id="voltar-inicio">Voltar</button>
+    </div>
+
+    <!-- Controle -->
+    <div id="tela-controle" class="hidden">
+      <h2 id="tipo-titulo"></h2>
+      <div class="counter" id="contador">0</div>
+      <button id="add">+2 Bulks</button>
+      <button id="remove" class="secondary">-2 Corrigir</button>
+      <div class="tabela" id="resumo-horas"></div>
+      <button id="gerar-pdf">Gerar Relatório</button>
+      <button class="secondary" id="voltar">Voltar</button>
+    </div>
+  </div>
+</div>
+
+<script>
+const { jsPDF } = window.jspdf;
+
+let operador = '';
+let turno = '';
+let tipoAtual = '';
+let contagens = JSON.parse(localStorage.getItem('contagensBulk')) || {
+  stella: { total: 0, porHora: {} },
+  spaten: { total: 0, porHora: {} }
+};
+
+const telaInicial = document.getElementById('tela-inicial');
+const telaSelecao = document.getElementById('tela-selecao');
+const telaControle = document.getElementById('tela-controle');
+const contadorEl = document.getElementById('contador');
+const tipoTitulo = document.getElementById('tipo-titulo');
+const resumoEl = document.getElementById('resumo-horas');
+
+function mostrar(id) {
+  [telaInicial, telaSelecao, telaControle].forEach(t => t.classList.add('hidden'));
+  document.getElementById(id).classList.remove('hidden');
+}
+
+document.getElementById('iniciar').onclick = () => {
+  operador = document.getElementById('operador').value.trim();
+  turno = document.getElementById('turno').value;
+  if (!operador || !turno) return alert('Preencha o nome e o turno.');
+  mostrar('tela-selecao');
+};
+
+document.getElementById('bulk-stella').onclick = () => abrirControle('stella');
+document.getElementById('bulk-spaten').onclick = () => abrirControle('spaten');
+document.getElementById('voltar-inicio').onclick = () => mostrar('tela-inicial');
+document.getElementById('voltar').onclick = () => mostrar('tela-selecao');
+
+function abrirControle(tipo) {
+  tipoAtual = tipo;
+  tipoTitulo.textContent = tipo === 'stella' ? 'Bulk Stella 🍺' : 'Bulk Spaten 🍺';
+  contadorEl.textContent = contagens[tipo].total;
+  atualizarResumo();
+  mostrar('tela-controle');
+}
+
+function atualizarResumo() {
+  const data = contagens[tipoAtual].porHora;
+  let html = '<div><b>Hora</b><b>Qtde</b></div>';
+  const horas = Object.keys(data).sort();
+  horas.forEach(h => {
+    html += `<div><span>${h}</span><span>${data[h]}</span></div>`;
+  });
+  html += `<div><span>Total</span><span>${contagens[tipoAtual].total}</span></div>`;
+  resumoEl.innerHTML = html;
+}
+
+document.getElementById('add').onclick = () => {
+  const hora = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  contagens[tipoAtual].total += 2;
+  contagens[tipoAtual].porHora[hora] = (contagens[tipoAtual].porHora[hora] || 0) + 2;
+  localStorage.setItem('contagensBulk', JSON.stringify(contagens));
+  contadorEl.textContent = contagens[tipoAtual].total;
+  atualizarResumo();
+};
+
+document.getElementById('remove').onclick = () => {
+  if (contagens[tipoAtual].total >= 2) {
+    const hora = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    contagens[tipoAtual].total -= 2;
+    if (contagens[tipoAtual].porHora[hora]) contagens[tipoAtual].porHora[hora] -= 2;
+    if (contagens[tipoAtual].porHora[hora] <= 0) delete contagens[tipoAtual].porHora[hora];
+    localStorage.setItem('contagensBulk', JSON.stringify(contagens));
+    contadorEl.textContent = contagens[tipoAtual].total;
+    atualizarResumo();
+  }
+};
+
+document.getElementById('gerar-pdf').onclick = () => {
+  const doc = new jsPDF();
+  const logoUrl = "https://upload.wikimedia.org/wikipedia/commons/4/4d/Ambev_logo.svg";
+  const margem = 15;
+  let y = 30;
+
+  // Logo
+  doc.addImage(logoUrl, "PNG", 150, 10, 40, 20);
+
+  // Cabeçalho
+  doc.setFillColor(0, 74, 173);
+  doc.rect(0, 0, 210, 35, "F");
+  doc.setTextColor(255,255,255);
+  doc.setFontSize(18);
+  doc.text("Relatório de Bulks - Ambev", margem, 20);
+
+  // Info
+  doc.setTextColor(0,0,0);
+  doc.setFontSize(12);
+  y += 20;
+  const data = new Date().toLocaleString();
+  doc.text(`Operador: ${operador}`, margem, y);
+  y += 8;
+  doc.text(`Turno: ${turno}`, margem, y);
+  y += 8;
+  doc.text(`Tipo de Bulk: ${tipoAtual === "stella" ? "Stella" : "Spaten"}`, margem, y);
+  y += 8;
+  doc.text(`Data/Hora: ${data}`, margem, y);
+  y += 12;
+
+  // Tabela
+  doc.setFillColor(0,74,173);
+  doc.setTextColor(255,255,255);
+  doc.rect(margem, y, 180, 10, "F");
+  doc.text("Hora", margem + 5, y + 7);
+  doc.text("Quantidade", margem + 140, y + 7);
+  y += 12;
+  doc.setTextColor(0,0,0);
+
+  const dataHora = contagens[tipoAtual].porHora;
+  const horas = Object.keys(dataHora).sort();
+  horas.forEach(h => {
+    doc.text(h, margem + 5, y);
+    doc.text(String(dataHora[h]), margem + 155, y);
+    y += 8;
+  });
+
+  doc.setFont(undefined, "bold");
+  doc.text("Total:", margem + 5, y);
+  doc.text(String(contagens[tipoAtual].total), margem + 155, y);
+
+  doc.save(`Relatorio_${tipoAtual}_${operador}_${Date.now()}.pdf`);
+};
+</script>
+</body>
+</html>
