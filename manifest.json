@@ -1,0 +1,15 @@
+{
+  "name": "Checklist Log20 – Operação Vidros",
+  "short_name": "Checklist Log20",
+  "start_url": "./index.html",
+  "display": "standalone",
+  "background_color": "#000000",
+  "theme_color": "#f58220",
+  "icons": [
+    {
+      "src": "./assets/logo_checklist_log20.jpg",
+      "sizes": "512x512",
+      "type": "image/jpg"
+    }
+  ]
+}
