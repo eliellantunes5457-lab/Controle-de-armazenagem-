@@ -1,8 +1,0 @@
-const CACHE_NAME='checklist-log20-web';
-self.addEventListener('install',e=>{
-  e.waitUntil(caches.open(CACHE_NAME).then(c=>c.addAll(['./','./index.html','./manifest.json','./assets/logo_checklist_log20.jpg'])));
-  self.skipWaiting();
-});
-self.addEventListener('fetch',e=>{
-  e.respondWith(caches.match(e.request).then(r=>r||fetch(e.request)));
-});
